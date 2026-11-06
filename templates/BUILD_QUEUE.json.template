@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "game_id": "",
+  "master_path": "MASTER_GAME.md",
+  "approved": false,
+  "approved_at": null,
+  "approved_master_sha256": null,
+  "status": "planning",
+  "current_step": null,
+  "steps": [
+    {
+      "id": "S01",
+      "title": "",
+      "section_refs": ["## Map layout", "### Room: <room_id>"],
+      "action": "schema_note",
+      "instruction": "",
+      "acceptance": [],
+      "replaces": null,
+      "ops_hint": null,
+      "status": "pending",
+      "started_at": null,
+      "finished_at": null,
+      "verify_notes": "",
+      "receipt_path": null
+    }
+  ]
+}

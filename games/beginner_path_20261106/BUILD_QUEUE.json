@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "game_id": "beginner_path_20261106",
+  "master_path": "MASTER_GAME.md",
+  "approved": false,
+  "approved_at": null,
+  "approved_master_sha256": null,
+  "status": "planning",
+  "current_step": null,
+  "steps": [
+    {
+      "id": "S01",
+      "title": "Lock ids, colors and coordinates",
+      "section_refs": [
+        "## Map layout",
+        "## Palette",
+        "## Constraints / out-of-scope"
+      ],
+      "action": "schema_note",
+      "instruction": "Write a schema note listing rooms start_foyer, goal_fight, their centers and sizes, and palette colors foyer_warm, fight_red.",
+      "acceptance": [
+        "check: master_contains foyer_warm",
+        "check: master_contains fight_red",
+        "Room rectangles share one door edge and their interiors do not overlap."
+      ],
+      "replaces": null,
+      "ops_hint": null,
+      "status": "pending",
+      "started_at": null,
+      "finished_at": null,
+      "verify_notes": "",
+      "receipt_path": null
+    },
+    {
+      "id": "S02",
+      "title": "Build start_foyer, goal_fight and grunt_goal",
+      "section_refs": [
+        "### Room: start_foyer",
+        "### Room: goal_fight",
+        "## Enemies & spawns",
+        "## Constraints / out-of-scope"
+      ],
+      "action": "world_ops",
+      "instruction": "Add palette colors, add rooms start_foyer, goal_fight joined by the shared door, and add grunt_goal in the same batch because a map with no grunt is rejected.",
+      "acceptance": [
+        "check: file runs/step_S02_ops_request.json",
+        "check: master_contains start_foyer",
+        "check: master_contains goal_fight",
+        "check: master_contains grunt_goal",
+        "The start minus_z door lines up with the goal plus_z door."
+      ],
+      "replaces": null,
+      "ops_hint": [
+        {
+          "op": "add_color",
+          "id": "foyer_warm",
+          "rgb": [
+            0.55,
+            0.52,
+            0.45
+          ]
+        },
+        {
+          "op": "add_color",
+          "id": "fight_red",
+          "rgb": [
+            0.45,
+            0.2,
+            0.18
+          ]
+        },
+        {
+          "op": "add_room",
+          "id": "start_foyer",
+          "center": [
+            0.0,
+            -4.0
+          ],
+          "size": [
+            6.0,
+            8.0
+          ],
+          "floor_y": 0.0,
+          "color": "foyer_warm",
+          "look": "hall",
+          "sides": {
+            "plus_z": "wall",
+            "minus_z": "door",
+            "plus_x": "wall",
+            "minus_x": "wall"
+          }
+        },
+        {
+          "op": "add_room",
+          "id": "goal_fight",
+          "center": [
+            0.0,
+            -12.0
+          ],
+          "size": [
+            8.0,
+            8.0
+          ],
+          "floor_y": 0.0,
+          "color": "fight_red",
+          "look": "fight",
+          "sides": {
+            "plus_z": "door",
+            "minus_z": "wall",
+            "plus_x": "wall",
+            "minus_x": "wall"
+          }
+        },
+        {
+          "op": "add_grunt",
+          "id": "grunt_goal",
+          "room": "goal_fight",
+          "pos": [
+            0.0,
+            -12.5
+          ]
+        }
+      ],
+      "status": "pending",
+      "started_at": null,
+      "finished_at": null,
+      "verify_notes": "",
+      "receipt_path": null
+    },
+    {
+      "id": "S03",
+      "title": "Place the start-room health pack",
+      "section_refs": [
+        "### Room: start_foyer",
+        "## Items / pickups"
+      ],
+      "action": "world_ops",
+      "instruction": "Add health_start in start_foyer so the player can heal before the fight.",
+      "acceptance": [
+        "check: file runs/step_S03_ops_request.json",
+        "check: master_contains health_start",
+        "Health pack sits inside the start room, inset from the walls."
+      ],
+      "replaces": null,
+      "ops_hint": [
+        {
+          "op": "add_health_pack",
+          "id": "health_start",
+          "room": "start_foyer",
+          "pos": [
+            -1.5,
+            -5.0
+          ]
+        }
+      ],
+      "status": "pending",
+      "started_at": null,
+      "finished_at": null,
+      "verify_notes": "",
+      "receipt_path": null
+    },
+    {
+      "id": "S04",
+      "title": "Verify the slice is complete",
+      "section_refs": [
+        "## Player fantasy / win condition",
+        "## Progression",
+        "## Gates"
+      ],
+      "action": "verify",
+      "instruction": "Confirm S01 to S03 are covered and the door-aligned path from start_foyer to goal_fight still passes gate-lint.",
+      "acceptance": [
+        "check: receipts S01,S02,S03",
+        "check: file runs/step_S01_schema_note.md",
+        "Walk start to goal, down the grunt, and see You win. A Godot playtest is manual."
+      ],
+      "replaces": null,
+      "ops_hint": null,
+      "status": "pending",
+      "started_at": null,
+      "finished_at": null,
+      "verify_notes": "",
+      "receipt_path": null
+    }
+  ]
+}
