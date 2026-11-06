@@ -38,6 +38,7 @@ The shipped check for that is `tools/gate_lint.py`. It recomputes the D-* gates 
 | [`phase2/`](phase2/) | Parser, deterministic lint, queue derive, beginner-path fill |
 | [`tools/gate_lint.py`](tools/gate_lint.py) | CLI: pass/fail the D-* gates and start→goal connectivity |
 | [`tools/beginner_path.py`](tools/beginner_path.py) | CLI: write a fresh 2-room beginner path |
+| [`tools/beginner_path_pipeline.py`](tools/beginner_path_pipeline.py) | CLI: generate a beginner path, then gate-lint that directory |
 | [`templates/MASTER_GAME.md.template`](templates/MASTER_GAME.md.template) | MASTER shape, including `## Gates` |
 | [`templates/BUILD_QUEUE.json.template`](templates/BUILD_QUEUE.json.template) | Queue shape. New queues stay `approved: false`. |
 | [`games/beginner_path_20261106/`](games/beginner_path_20261106/) | Known-good fresh demo emitted by the generator |
@@ -46,7 +47,15 @@ Python 3 and the standard library only. No install step.
 
 ## Run Phase 2
 
-From the repo root:
+From the repo root, generate a beginner path and gate-lint it in one command:
+
+```bash
+python3 tools/beginner_path_pipeline.py --date 20261106 --out /tmp/beginner_path_20261106
+```
+
+`beginner_path_pipeline.py` runs `beginner_path.py` into `--out`, then runs `gate_lint.py` on that directory. The generator prints its own gate-lint report; the pipeline runs gate-lint again on the written files. The process ends with `beginner-path: PASS` or `FAIL`, `gate-lint: PASS` or `FAIL`, and `pipeline: PASS` or `FAIL`. Exit 0 only when both steps pass. If generation fails, gate-lint is not run and the process still exits non-zero. Omit `--out` to write `games/beginner_path_<today>/`. Pass `--force` to overwrite an existing master. The pipeline does not approve the queue, write `world.json`, or apply a live bunker.
+
+The same two steps by hand:
 
 ```bash
 python3 tools/beginner_path.py --date 20261106 --out games/beginner_path_20261106
@@ -81,7 +90,7 @@ python3 -m unittest discover -s tests -v
 ## Status
 
 - **Phase 1 (ideation):** complete. Files under `ideation/` stay as written, except the append-only decision log.
-- **Phase 2 (this repo):** in progress. Shipped: gate-lint, beginner-path generator, MASTER/queue templates, one fresh demo game. Not shipped: the builder loop, world.json materialize, Doug’s APPROVE step, and any live apply.
+- **Phase 2 (this repo):** in progress. Shipped: gate-lint, beginner-path generator, the generate-then-lint pipeline, MASTER/queue templates, one fresh demo game. Not shipped: the builder loop, world.json materialize, Doug’s APPROVE step, and any live apply.
 - **Queue:** every generated queue is `approved: false`. gate-lint does not approve it.
 
 ## Out of scope

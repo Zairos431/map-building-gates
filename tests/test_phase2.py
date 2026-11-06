@@ -6,11 +6,15 @@ generator. A second copy with a broken door must fail connectivity.
 
 from __future__ import annotations
 
+import contextlib
+import importlib.util
+import io
 import json
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -327,6 +331,144 @@ class BeginnerPathTests(unittest.TestCase):
             )
             self.assertEqual(again.returncode, 2, again.stdout + again.stderr)
 
+    def test_pipeline_temp_dir_lints_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "beginner_path_20261106"
+            proc = subprocess.run(
+                [
+                    PYTHON,
+                    str(ROOT / "tools" / "beginner_path_pipeline.py"),
+                    "--date",
+                    "20261106",
+                    "--out",
+                    str(out),
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertTrue(
+                proc.stdout.rstrip().endswith(
+                    "beginner-path: PASS\ngate-lint: PASS\npipeline: PASS"
+                ),
+                proc.stdout,
+            )
+            self.assertIn("gate-lint: PASS", proc.stdout)
+            self.assertIn("approved: false", proc.stdout)
+            self.assertNotIn("allow-apply", proc.stdout)
+            self.assertNotIn("allow_apply", proc.stdout)
+            self.assertTrue((out / "MASTER_GAME.md").is_file())
+            self.assertTrue((out / "BUILD_QUEUE.json").is_file())
+            self.assertEqual(list(out.glob("world*.json")), [])
+            queue = json.loads((out / "BUILD_QUEUE.json").read_text(encoding="utf-8"))
+            self.assertFalse(queue["approved"])
+            report = lint_text(
+                (out / "MASTER_GAME.md").read_text(encoding="utf-8"),
+                path=str(out / "MASTER_GAME.md"),
+            )
+            self.assertTrue(report.ok, format_report(report))
+
+            again = subprocess.run(
+                [
+                    PYTHON,
+                    str(ROOT / "tools" / "beginner_path_pipeline.py"),
+                    "--date",
+                    "20261106",
+                    "--out",
+                    str(out),
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(again.returncode, 2, again.stdout + again.stderr)
+            self.assertTrue(
+                again.stdout.rstrip().endswith(
+                    "beginner-path: FAIL\ngate-lint: FAIL (not run)\npipeline: FAIL"
+                ),
+                again.stdout,
+            )
+            self.assertNotIn("pipeline: PASS", again.stdout)
+
+    def test_pipeline_bad_date_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "beginner_path_bad"
+            proc = subprocess.run(
+                [
+                    PYTHON,
+                    str(ROOT / "tools" / "beginner_path_pipeline.py"),
+                    "--date",
+                    "nope",
+                    "--out",
+                    str(out),
+                ],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
+            self.assertIn("date must be YYYYMMDD", proc.stdout)
+            self.assertTrue(
+                proc.stdout.rstrip().endswith(
+                    "beginner-path: FAIL\ngate-lint: FAIL (not run)\npipeline: FAIL"
+                ),
+                proc.stdout,
+            )
+            self.assertFalse(out.exists())
+
+    def test_pipeline_lint_failure_exits_nonzero(self) -> None:
+        module = _load_pipeline()
+        calls: list[list[str]] = []
+
+        class _Result:
+            def __init__(self, code: int) -> None:
+                self.returncode = code
+
+        def fake_run(cmd, *args, **kwargs):
+            calls.append(list(cmd))
+            if str(cmd[1]).endswith("gate_lint.py"):
+                sys.stdout.write("gate-lint: FAIL /tmp/broken\n")
+                return _Result(1)
+            out = Path(cmd[cmd.index("--out") + 1])
+            out.mkdir(parents=True, exist_ok=True)
+            (out / "MASTER_GAME.md").write_text("master\n", encoding="utf-8")
+            (out / "BUILD_QUEUE.json").write_text("{}\n", encoding="utf-8")
+            sys.stdout.write("wrote master\n")
+            return _Result(0)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "beginner_path_20261106"
+            with mock.patch.object(module.subprocess, "run", fake_run):
+                buf = io.StringIO()
+                with contextlib.redirect_stdout(buf):
+                    code = module.main(["--date", "20261106", "--out", str(out)])
+            text = buf.getvalue()
+            self.assertEqual(code, 1, text)
+            self.assertEqual(len(calls), 2)
+            self.assertTrue(str(calls[0][1]).endswith("beginner_path.py"))
+            self.assertTrue(str(calls[1][1]).endswith("gate_lint.py"))
+            self.assertEqual(calls[1][2], str(out))
+            self.assertNotIn("--allow-apply", calls[0])
+            self.assertTrue(
+                text.rstrip().endswith("beginner-path: PASS\ngate-lint: FAIL\npipeline: FAIL"),
+                text,
+            )
+
+    def test_pipeline_rejects_allow_apply(self) -> None:
+        proc = subprocess.run(
+            [PYTHON, str(ROOT / "tools" / "beginner_path_pipeline.py"), "--allow-apply"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("unrecognized arguments", proc.stderr)
+
     def test_write_game_force_matches_render(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp) / "game"
@@ -336,6 +478,16 @@ class BeginnerPathTests(unittest.TestCase):
                 (out / "MASTER_GAME.md").read_text(encoding="utf-8"),
                 render_master(beginner_spec("20261106")),
             )
+
+
+def _load_pipeline():
+    path = ROOT / "tools" / "beginner_path_pipeline.py"
+    spec = importlib.util.spec_from_file_location("beginner_path_pipeline", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _with_alcove(spec):
