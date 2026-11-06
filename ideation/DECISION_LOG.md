@@ -29,3 +29,15 @@
 
 ## Amendments
 _(none yet — append below with date)_
+
+## 2026-11-06 — Phase 2 go (Doug)
+
+**Authority:** Doug (owner), voice, 2026-11-06. Explicit go for Phase 2.
+**Capture:** implementation in this repo. Phase 1 decisions above are unchanged. This entry only records the go and the scope that landed here.
+
+1. **Go.** Doug said go. Phase 2 is no longer waiting. Ideation files stay the historical record: this log is append-only, and `MAP_BUILDING_GATES_PHASE1.md` was not rewritten.
+2. **Where it lives.** Phase 2 in this repo is `phase2/`, `tools/gate_lint.py`, `tools/beginner_path.py`, `templates/`, and `games/beginner_path_20261106/`. It does not claim the full planner→builder loop from `/workspace/game_pipeline/`. A thin derive step writes `BUILD_QUEUE.json` from the master’s Build Steps.
+3. **gate-lint.** Checks the deterministic D-* gates and start→goal connectivity (door or open sides that meet on a shared edge, BFS from start to goal). It recomputes from room numbers, spawns, palette, and frontmatter. The Status column in `## Gates` is not trusted. A broken door or a disconnected goal fails the process with the gate id in the report.
+4. **Beginner-path generator.** Emits `games/beginner_path_<YYYYMMDD>/MASTER_GAME.md` plus a derived queue with `approved: false`. Fill recipe, as locked in Phase 1: 2 rooms only; collinear along −Z with a shared-edge door; sizes 6×8 then 8×8; 1 grunt in the goal room; 1 health pack in the start room; single `floor_y` 0; `fresh_demo`; mode progression. Soft and flavor fields get safe defaults and `human_touch` flags (`leave`, `optional`, `suggested`).
+5. **Safety.** Fresh demo map only. No `--allow-apply`. No live `small_bunker` / bunker world writes. `target_map` must be `fresh_demo` or D-SAFE-01 fails.
+6. **Still out of scope for this go.** Stairs, elevator, garden, new enemy or item kinds, new weapons, multi-floor, FFA, overnight loops, World/Game Maker UI merge, the builder loop, world.json materialize, and Doug’s APPROVE step. `floor_y` 3.2 stays out of the beginner path because it needs stairs or an elevator.

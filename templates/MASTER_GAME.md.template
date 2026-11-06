@@ -1,0 +1,161 @@
+---
+schema_version: 1
+game_id: <snake_case_id>
+title: <Game title>
+mode: <ffa|progression>
+status: draft
+target: <home_fps|other>
+target_map: fresh_demo
+win: all_grunts_down
+start_room_id: <start_room_id>
+goal_room_id: <goal_room_id>
+start_pos: [0.0, 0.9, -4.0]
+units: meters
+growth_axis: minus_z
+created: <YYYY-MM-DD>
+updated: <YYYY-MM-DD>
+---
+
+# <Game title> — Master Game Document
+
+> This file is the single source of truth for one game. gate-lint reads the room
+> blocks, spawn tables, palette, and frontmatter. It does not trust the Status
+> column in ## Gates. Replace every <placeholder> before running gate-lint.
+> This skeleton is not a valid map. The builder loop is not part of this repo.
+> Do not target the live small_bunker from a beginner path.
+
+## Vision
+<2–5 sentences: what the game is, the feel, the one thing that must be true when it is done.>
+
+## Player fantasy / win condition
+- Fantasy: <who the player is, what they do>
+- Win: <exact condition, e.g. all grunts down (home_fps: every grunt counts toward the win)>
+- Lose: <exact condition, e.g. health reaches 0>
+
+## Mode & difficulty tiers
+- Mode: <ffa|progression> — <one line why>
+- Tiers:
+  | tier | enemy count mult | enemy notes | pickups | notes |
+  | --- | --- | --- | --- | --- |
+  | easy | | | | |
+  | normal | | | | |
+  | hard | | | | |
+- Where tiers live: <world.json variant per tier | code change | out of scope for v1>
+
+## Map layout
+Coordinates follow WORLD_SCHEMA (meters, +Y up, map runs from z=0 toward -Z, x=0 center line,
+floor_y 0 or 3.2, rooms are center [x,z] + size [width,depth], sides plus_z/minus_z/plus_x/minus_x =
+wall|door|open). One `### Room:` block per room. Beginner path v1 keeps every floor_y at 0.0.
+
+### Room: <room_id>
+- purpose: <spawn / fight / loot / transit / boss ...>
+- center: [x, z]
+- size: [width, depth]
+- height: 3.0
+- floor_y: 0.0
+- color: <palette name, defined under ## Palette>
+- look: <hall|fight|bunker|landing|upper|stair>
+- sides: {plus_z: wall, minus_z: door, plus_x: wall, minus_x: wall}
+- connections: [<other_room_id> via <side>]
+
+## Palette
+- <palette_name>: [r, g, b]
+
+## Weapons & tools
+### Weapon: <weapon_id>
+- role: <primary / sidearm ...>
+- stats: <damage, rate, ammo — or "existing code weapon, unchanged">
+- lives in: <code (home_fps weapons are code) | world.json>
+
+### Tool: <tool_id>
+- use: <...>
+- lives in: <...>
+
+## Enemies & spawns
+| id | kind | room | pos [x,y,z] or "auto" | tier | notes |
+| --- | --- | --- | --- | --- | --- |
+| grunt_<room> | grunt | <room_id> | [0.0, 0.85, -12.5] | all | y = floor_y + 0.85; inside the room, inset >= 0.75 m |
+
+## Items / pickups
+| id | kind | room | pos [x,y,z] or "auto" | tier | notes |
+| --- | --- | --- | --- | --- | --- |
+| health_<room> | health_pack | <room_id> | [-1.5, 0.45, -5.0] | all | +25 health; y = floor_y + 0.45; inset >= 0.5 m |
+
+## Progression
+<For mode=progression: ordered beats from start room to goal room.
+For mode=ffa: keep this heading so section refs stay stable, and describe the match here.>
+
+## Constraints / out-of-scope
+- In world.json (data): rooms, palette colors, doors/sides, grunts, health packs.
+- In code (needs a code_note step + human/code agent): lights, player spawn, new enemy/item kinds, weapons, stairs/elevator geometry, textures, HUD.
+- Target map: fresh_demo. A beginner path does not write the live small_bunker.
+- Out of scope for this version: <list>
+- New palette colors: <name: [r, g, b]>
+
+## Gates
+
+Authoritative check: `python3 tools/gate_lint.py MASTER_GAME.md` (or the game directory).
+The Status column is a claim. gate-lint recomputes every D-* gate from the numbers
+above and does not trust this column. Generalistic rows are flavor. human_touch is
+`leave`, `optional`, `suggested`, or `blocked`. Creative fill must not break a D-* gate.
+
+### Deterministic
+| Gate ID | Check | Value | Status |
+| --- | --- | --- | --- |
+| D-MAP-01 | room_count >= 2 | <n> | unchecked |
+| D-MAP-02 | meters; grow toward -Z; x = 0 is the center line | <units, axis> | unchecked |
+| D-MAP-03 | beginner floor_y is 0.0 | <floor_y list> | unchecked |
+| D-ROOM-01 | snake_case room id, unique | <ids> | unchecked |
+| D-ROOM-02 | width >= 4 m and depth >= 4 m | <sizes> | unchecked |
+| D-ROOM-03 | room interiors do not overlap | <centers> | unchecked |
+| D-ROOM-04 | height >= 2.5 m (default 3.0) | <heights> | unchecked |
+| D-EXIT-01 | start has a forward exit; goal has an entry; transit has two | <exit counts> | unchecked |
+| D-EXIT-02 | door or open sides meet on a shared edge | <which doors meet> | unchecked |
+| D-EXIT-03 | start reaches goal through those doors | <path> | unchecked |
+| D-START-01 | start_room_id names a room | <id> | unchecked |
+| D-START-02 | start point inside the start room, inset >= 0.75 m | <pos or auto> | unchecked |
+| D-GOAL-01 | goal_room_id names a room | <id> | unchecked |
+| D-GOAL-02 | win is all_grunts_down | all_grunts_down | unchecked |
+| D-ENEMY-01 | at least one grunt | <count> | unchecked |
+| D-ENEMY-02 | grunt inside its room; one grunt in the goal or on the path | <id in room> | unchecked |
+| D-ITEM-01 | pickups, if any, sit inside their room | <id in room or none> | unchecked |
+| D-PAL-01 | every room color names a palette entry | <color keys> | unchecked |
+| D-ID-01 | piece, enemy, and item ids are unique snake_case | ids unique | unchecked |
+| D-SAFE-01 | target_map is fresh_demo | fresh_demo | unchecked |
+
+### Generalistic
+| Gate ID | Field | Default | human_touch |
+| --- | --- | --- | --- |
+| G-VIS-01 | vision | <short fantasy> | optional |
+| G-NAME-01 | game_id and title | <id / title> | optional |
+| G-ROOM-01 | room purpose | <spawn / fight> | leave |
+| G-ROOM-02 | room ids | <ids> | optional |
+| G-LOOK-01 | wall look | <hall / fight> | leave |
+| G-PAL-02 | palette RGB | <muted colors> | suggested |
+| G-MOOD-01 | mood | <adjective> | optional |
+| G-ITEM-02 | health pack | <one pack or none> | optional |
+| G-ITEM-03 | extra pickups | none | leave |
+| G-ENEMY-03 | extra grunts | none | leave |
+| G-ENEMY-04 | grunt facing | <faces the entry> | leave |
+| G-PATH-01 | third room | omitted | leave |
+| G-PATH-02 | dead-end alcove | omitted | optional |
+| G-DIFF-01 | difficulty tiers | easy ships; other tiers out of scope | leave |
+| G-WEAP-01 | weapons | existing rifle | leave |
+| G-LIGHT-01 | lighting | use nearby code lights | optional |
+| G-META-01 | out of scope | <list> | leave |
+
+## Build Steps
+Each step is ONE concrete builder action. `section_refs` are exact heading lines above.
+`action` is world_ops, schema_note, code_note, verify, or docs.
+`replaces` is null or a JSON object. `ops_hint` is null or a JSON list.
+The derived queue stays `approved: false` until Doug says APPROVE.
+
+### S01: <title>
+- section_refs: ["## Map layout", "### Room: <room_id>"]
+- action: schema_note
+- instruction: <single concrete action>
+- acceptance:
+  - check: master_contains <room_id>
+  - <checkable statement>
+- replaces: null
+- ops_hint: null
