@@ -2,7 +2,7 @@
 
 **Early / exploratory.** This repo is the home for a small design idea: building game maps with **gates** so an AI (or a person) can fill in a beginner path that actually reaches a playable ending—without requiring every creative detail to be perfect first.
 
-Phase 1 ideation lives in [`ideation/`](ideation/MAP_BUILDING_GATES_PHASE1.md) and is left as the historical record. Phase 2, started after Doug’s go on 2026-11-06, adds a **gate-lint** and a **beginner-path generator** in this repo. The full planner→builder loop that proved `demo_corridor` still lives on the pipeline box. This repo does not apply a world and does not approve a queue.
+Phase 1 ideation lives in [`ideation/`](ideation/MAP_BUILDING_GATES_PHASE1.md) and is left as the historical record. Phase 2, started after Doug’s go on 2026-11-06, adds a **gate-lint** and a **beginner-path generator** in this repo. The full planner→builder loop that proved `demo_corridor` still lives on the pipeline box. Phase 3 adds the builder loop, world.json materialize, Doug's APPROVE step and a hard-gated live bunker apply. Live writes stay dry-run by default and need Doug's explicit approval each time.
 
 ## The idea in plain language
 
@@ -42,6 +42,8 @@ The shipped check for that is `tools/gate_lint.py`. It recomputes the D-* gates 
 | [`templates/MASTER_GAME.md.template`](templates/MASTER_GAME.md.template) | MASTER shape, including `## Gates` |
 | [`templates/BUILD_QUEUE.json.template`](templates/BUILD_QUEUE.json.template) | Queue shape. New queues stay `approved: false`. |
 | [`games/beginner_path_20261106/`](games/beginner_path_20261106/) | Known-good fresh demo emitted by the generator |
+| [`phase3/`](phase3/) | Builder loop + world.json materialize + gated live apply |
+| [`tools/builder_loop.py`](tools/builder_loop.py) | CLI: lint, dry-run, approve, build steps, materialize, apply-world |
 
 Python 3 and the standard library only. No install step.
 
@@ -87,15 +89,33 @@ Tests:
 python3 -m unittest discover -s tests -v
 ```
 
+## Run Phase 3
+
+```bash
+python3 tools/builder_loop.py --game-dir games/beginner_path_20261106 --lint
+python3 tools/builder_loop.py --game-dir games/beginner_path_20261106 --dry-run --all
+python3 tools/builder_loop.py --game-dir games/beginner_path_20261106 --materialize
+```
+
+The builder re-reads `MASTER_GAME.md` and `BUILD_QUEUE.json` every step, derives
+the queue from the master, and refuses non-dry runs until the queue is approved
+with a pinned master hash (`--approve` needs `CONFIRM_APPROVE=YES`, only after
+Doug says APPROVE). `--materialize` writes a staged `runs/world.staged.json`;
+nothing touches the live bunker by default. Live apply requires `--apply-world`
++ `--allow-apply` + `CONFIRM_APPLY=YES` + approved pinned queue + gate-lint PASS
++ the real live world.json path, and leaves a timestamped backup and receipt
+before the atomic replace. See `phase3/README.md`.
+
 ## Status
 
 - **Phase 1 (ideation):** complete. Files under `ideation/` stay as written, except the append-only decision log.
-- **Phase 2 (this repo):** in progress. Shipped: gate-lint, beginner-path generator, the generate-then-lint pipeline, MASTER/queue templates, one fresh demo game. Not shipped: the builder loop, world.json materialize, Doug’s APPROVE step, and any live apply.
+- **Phase 2 (this repo):** complete. Shipped: gate-lint, beginner-path generator, the generate-then-lint pipeline, MASTER/queue templates, one fresh demo game.
+- **Phase 3 (this repo):** shipped 2026-11-06. Builder loop, world.json materialize (staged), Doug’s APPROVE step, and a live bunker apply gated behind `--allow-apply` + `CONFIRM_APPLY=YES` + approved pinned master hash + gate-lint PASS. Dry-run by default; no live apply has been run. Not shipped: anything still out of scope below.
 - **Queue:** every generated queue is `approved: false`. gate-lint does not approve it.
 
 ## Out of scope
 
-Stairs, elevator, garden, new enemy or item kinds, new weapons, multi-floor, FFA, overnight loops, and the World/Game Maker UI merge. No `--allow-apply`. No writes to a live `small_bunker` / bunker world. A `floor_y` of 3.2 is a schema floor in the full game and fails the beginner-path lint, because that floor needs stairs or an elevator.
+Stairs, elevator, garden, new enemy or item kinds, new weapons, multi-floor, FFA, overnight loops, and the World/Game Maker UI merge. Live bunker writes exist as of Phase 3 but are gated: no `--allow-apply` means no apply path runs at all, and even with it a live write additionally needs `CONFIRM_APPLY=YES` and an approved queue pinned to the current master hash. Every other command is dry-run/staged only. A `floor_y` of 3.2 is a schema floor in the full game and fails the beginner-path lint, because that floor needs stairs or an elevator.
 
 ## License / credit
 

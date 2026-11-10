@@ -41,3 +41,14 @@ _(none yet — append below with date)_
 4. **Beginner-path generator.** Emits `games/beginner_path_<YYYYMMDD>/MASTER_GAME.md` plus a derived queue with `approved: false`. Fill recipe, as locked in Phase 1: 2 rooms only; collinear along −Z with a shared-edge door; sizes 6×8 then 8×8; 1 grunt in the goal room; 1 health pack in the start room; single `floor_y` 0; `fresh_demo`; mode progression. Soft and flavor fields get safe defaults and `human_touch` flags (`leave`, `optional`, `suggested`).
 5. **Safety.** Fresh demo map only. No `--allow-apply`. No live `small_bunker` / bunker world writes. `target_map` must be `fresh_demo` or D-SAFE-01 fails.
 6. **Still out of scope for this go.** Stairs, elevator, garden, new enemy or item kinds, new weapons, multi-floor, FFA, overnight loops, World/Game Maker UI merge, the builder loop, world.json materialize, and Doug’s APPROVE step. `floor_y` 3.2 stays out of the beginner path because it needs stairs or an elevator.
+
+## 2026-11-06 — Phase 3 go (Doug)
+
+**Authority:** Doug (owner), via Anthony - Coordinator II, 2026-11-06. Explicit go for Phase 3.
+**Capture:** `phase3/`, `tools/builder_loop.py`, `tests/test_phase3.py`. Ideation files above unchanged; this entry is appended only.
+
+1. **Go.** Doug said go on Phase 3, built on Citadel. Phase 1 and Phase 2 records are unchanged.
+2. **Builder loop.** Ported from the proven `/workspace/game_pipeline/builder/builder_loop.py` pattern rather than writing a parallel system, and rewired to this repo's Phase 2 gate-lint. Re-reads MASTER + BUILD_QUEUE every step; queue derives from the master; non-dry runs need an approved queue whose pinned master hash still matches. Doug's APPROVE step needs `CONFIRM_APPROVE=YES`.
+3. **world.json materialize.** Rooms, palette, grunts, health packs only (Phase 1 scope). Default output is a staged `runs/world.staged.json`, never the live bunker.
+4. **Live bunker apply.** Now in scope but hard-gated: `--apply-world` + `--allow-apply` + `CONFIRM_APPLY=YES` + approved queue pinned to the current master hash + gate-lint PASS + the real live path `home_first_person_shooter\game\world.json`. Backup + receipt before an atomic replace. No live apply was run during the build; each live apply still needs Doug's explicit approval.
+5. **Still out of scope.** Stairs, elevator, garden, new enemy or item kinds, new weapons, multi-floor, FFA, overnight loops, World/Game Maker UI merge.
