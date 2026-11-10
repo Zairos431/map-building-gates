@@ -1,2 +1,4 @@
 __pycache__/
 *.pyc
+roundtrip_runs/*
+!roundtrip_runs/README.md

@@ -25,6 +25,26 @@ LIVE_BUNKER = Path(
     r"C:\Users\manfr\citadel\project_files\creative_projects\home_first_person_shooter\game\world.json"
 )
 
+# WORLD_SCHEMA v1 read-only mirror. main.gd owns these values; this keeps the
+# materialized file readable by the existing world_agent checker, not tunable.
+CODE_CONSTANTS = {
+    "_note": "Read-only mirror of main.gd constants; code wins.",
+    "WALL_T": 0.3,
+    "HALL_W": 3.0,
+    "HALL_H": 3.0,
+    "HALL_L": 14.0,
+    "ROOM": 8.0,
+    "DOOR_W": 3.0,
+    "STAIR_W": 3.0,
+    "STEP_RISE": 0.2,
+    "STEP_TREAD": 0.45,
+    "STEP_COUNT": 16,
+    "STAIR_PAD": 1.2,
+    "LANDING_D": 5.0,
+    "ELEV_DOOR_W": 2.2,
+    "ELEV_INNER": 2.0,
+}
+
 
 def now() -> str:
     return dt.datetime.now().astimezone().isoformat(timespec="seconds")
@@ -84,6 +104,7 @@ def materialize(master_text: str) -> dict:
         "schema_version": 1,
         "name": name,
         "units": "meters; +Y up; the map runs from z=0 (spawn) toward -Z",
+        "code_constants": dict(CODE_CONSTANTS),
         "palette": palette,
         "pieces": rooms,
         "enemies": enemies,
@@ -115,8 +136,15 @@ def resolve_bunker(explicit: str | None) -> Path:
 
 def apply_live(world: dict, *, bunker: Path, master_sha256: str, game_id: str) -> dict:
     """Backup -> receipt -> atomic replace of the live world.json."""
-    backup_dir = bunker.parent.parent / "backups" / f"map_gates_apply_{stamp()}"
-    backup_dir.mkdir(parents=True, exist_ok=False)
+    base = bunker.parent.parent / "backups" / f"map_gates_apply_{stamp()}"
+    backup_dir, n = base, 1
+    while True:  # two applies in the same second must not collide or overwrite a backup
+        try:
+            backup_dir.mkdir(parents=True, exist_ok=False)
+            break
+        except FileExistsError:
+            n += 1
+            backup_dir = base.with_name(f"{base.name}_{n:02d}")
     backup = backup_dir / "world.json"
     old = bunker.read_bytes()
     backup.write_bytes(old)
