@@ -59,6 +59,20 @@ class MaterializeTests(unittest.TestCase):
             self.assertIn(surface, world["palette"])
         self.assertEqual(world["map_building_gates"]["start_room_id"], "start_foyer")
 
+    def test_materialize_is_enclosed_and_checker_compatible(self):
+        world = materialize(MASTER_TEXT)
+        self.assertEqual(world["code_constants"]["DOOR_W"], 3.0)
+        self.assertEqual(world["code_constants"]["STEP_COUNT"], 16)
+        self.assertEqual(
+            world["pieces"][0]["sides"],
+            {"plus_z": "wall", "minus_z": "door", "plus_x": "wall", "minus_x": "wall"},
+        )
+        self.assertEqual(
+            world["pieces"][1]["sides"],
+            {"plus_z": "door", "minus_z": "wall", "plus_x": "wall", "minus_x": "wall"},
+        )
+        self.assertFalse(any(p["kind"] in ("stairs", "elevator", "garden") for p in world["pieces"]))
+
     def test_materialize_refuses_auto_pos(self):
         broken = MASTER_TEXT.replace("[0.0, 0.85, -12.5]", "auto")
         with self.assertRaises(ValueError):
@@ -192,6 +206,32 @@ class ApplyGateTests(unittest.TestCase):
         with mock.patch("phase3.world_io.LIVE_BUNKER", Path("/nonexistent/world.json")):
             with self.assertRaises(ValueError):
                 resolve_bunker(None)
+
+
+class RoundTripTests(unittest.TestCase):
+    def test_roundtrip_on_temp_copy(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = Path(d)
+            bunker = tmp / "home_first_person_shooter" / "game" / "world.json"
+            bunker.parent.mkdir(parents=True)
+            bunker.write_text('{"schema_version": 1, "name": "small_bunker", "pieces": []}\n')
+            work = tmp / "work"
+            result = subprocess.run(
+                [PYTHON, str(ROOT / "tools" / "roundtrip.py"), "--bunker-path", str(bunker),
+                 "--work-dir", str(work), "--stamp", "t1"],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("ROUNDTRIP PASS", result.stdout)
+            res = json.loads((work / "roundtrip_result.json").read_text())
+            self.assertTrue(res["ok"])
+            self.assertNotEqual(res["sha_before"], res["sha_after_apply_1"])
+            self.assertNotEqual(res["sha_after_apply_1"], res["sha_after_add"])
+            world = json.loads(bunker.read_text())
+            self.assertEqual([i["id"] for i in world["items"]], ["health_start", "health_roundtrip"])
+            pre = bunker.parent.parent / "backups" / "map_gates_roundtrip_pre_t1" / "world.json"
+            self.assertEqual(json.loads(pre.read_text())["name"], "small_bunker")
+            self.assertEqual(len(list((bunker.parent.parent / "backups").glob("map_gates_apply_*"))), 2)
 
 
 if __name__ == "__main__":

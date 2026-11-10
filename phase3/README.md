@@ -38,3 +38,13 @@ A live write (`--apply-world`) requires ALL of:
 Before replacing, the tool copies the old world to
 `home_first_person_shooter\backups\map_gates_apply_<stamp>\world.json` and writes a
 `receipt.json` beside it, then replaces atomically (temp file + `os.replace`).
+
+## Round-trip rehearsal (added 2026-11-10)
+
+`tools/roundtrip.py` runs one full cycle against ONE `world.json`: generate the enclosed two-room
+beginner path, gate-lint, approve, stage, plain backup, apply, reopen and check with
+`world_agent.validate` (optionally a headless Godot load), then add one health pack, prove the old
+approval is refused, re-approve, apply again, reopen, and prove only that pack was added.
+Rehearse on a COPY of the game folder first; the live run uses the identical command with a different
+`--bunker-path`. It never restores a file; it prints the plain pre-test backup to restore from on failure.
+Work folders live under `roundtrip_runs/` (git-ignored).
